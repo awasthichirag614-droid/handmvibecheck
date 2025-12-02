@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#dc2626">
+    <title>H&M Vibe Check - AI Outfit Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html { scroll-behavior: smooth; }
+        body { overflow-x: hidden; }
+        .animate-bounce-slow { animation: bounce 1.5s infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
+        /* Mobile touch improvements */
+        button, a { touch-action: manipulation; }
+        /* Prevent text selection on buttons */
+        button { -webkit-user-select: none; user-select: none; }
+        /* Smooth scrolling for modals */
+        .modal-scroll { -webkit-overflow-scrolling: touch; }
+        /* Fix for iOS input zoom */
+        input, select, textarea { font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Icons as SVG components
+        const Icons = {
+            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>,
+            Palette: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg>,
+            CloudSun: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>,
+            Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            User: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+            ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>,
+            Sparkles: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>,
+            ShoppingBag: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>,
+            RotateCcw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+            Heart: ({filled}) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>,
+            Share2: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>,
+            X: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+            Bookmark: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>,
+            Star: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+            Twitter: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>,
+            Facebook: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>,
+            Link2: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>,
+        };
+
+        const OUTFIT_GRADIENTS = {
+            "Vibe Match": { from: "#667eea", to: "#764ba2", icon: "✨" },
+            "Weather Ready": { from: "#11998e", to: "#38ef7d", icon: "🌤️" },
+            "Social Star": { from: "#fc466b", to: "#3f5efb", icon: "⭐" },
+            "Day-to-Night": { from: "#f857a6", to: "#ff5858", icon: "🌙" },
+            "Budget Friendly": { from: "#56ab2f", to: "#a8e063", icon: "💚" },
+        };
+
+        const PIECE_ICONS = {
+            blazer: "🧥", jacket: "🧥", coat: "🧥", cardigan: "🧥", sweater: "🧶", knit: "🧶", hoodie: "🧶",
+            dress: "👗", gown: "👗", jumpsuit: "👗", romper: "👗",
+            shirt: "👔", blouse: "👔", top: "👚", tee: "👕", cami: "👚", tank: "👚",
+            pants: "👖", trousers: "👖", jeans: "👖", shorts: "🩳", skirt: "👗",
+            heels: "👠", pumps: "👠", boots: "👢", sneakers: "👟", loafers: "👞", shoes: "👞", sandals: "🩴",
+            bag: "👜", clutch: "👛", tote: "👜", backpack: "🎒",
+            necklace: "📿", jewelry: "💎", earrings: "💎", bracelet: "📿", watch: "⌚", belt: "🪢",
+            scarf: "🧣", hat: "🎩", sunglasses: "🕶️", gloves: "🧤",
+        };
+
+        const getPieceIcon = (piece) => {
+            const lower = piece.toLowerCase();
+            for (const [key, icon] of Object.entries(PIECE_ICONS)) {
+                if (lower.includes(key)) return icon;
+            }
+            return "👕";
+        };
+
+        const QUIZ_DATA = {
+            occasion: {
+                icon: 'Calendar',
+                title: "Where are you going?",
+                subtitle: "The Occasion",
+                options: [
+                    { id: 'formal', label: 'Formal Client Dinner', desc: 'Structured, powerful, high-stakes', emoji: '💼' },
+                    { id: 'party', label: 'Sunset Beach Party', desc: 'Flowy, festive, celebration vibes', emoji: '🌅' },
+                    { id: 'casual', label: 'Casual Sunday Brunch', desc: 'Relaxed, comfortable, effortless', emoji: '☕' },
+                    { id: 'nightout', label: 'NYC Night Out', desc: 'Edgy, statement pieces, bold', emoji: '🌃' },
+                    { id: 'cocktail', label: 'Rooftop Cocktail Evening', desc: 'Chic, sleek, glamorous', emoji: '🍸' },
+                    { id: 'travel', label: 'Airport / Travel Day', desc: 'Comfortable, layered, smart', emoji: '✈️' },
+                    { id: 'gallery', label: 'Art Gallery / Museum', desc: 'Minimal, aesthetic, refined', emoji: '🎨' },
+                ]
+            },
+            mood: {
+                icon: 'Palette',
+                title: "What's your desired vibe?",
+                subtitle: "The Mood",
+                options: [
+                    { id: 'chic', label: 'Effortlessly Chic', desc: 'Minimalist neutrals, perfect tailoring', emoji: '✨' },
+                    { id: 'bold', label: 'Bold & Edgy', desc: 'Leather, textures, dark palette', emoji: '🔥' },
+                    { id: 'boho', label: 'Bohemian Rhapsody', desc: 'Flowy fabrics, earthy prints', emoji: '🌿' },
+                    { id: 'classic', label: 'Classic & Timeless', desc: 'Navy, camel, structured shapes', emoji: '👑' },
+                ]
+            },
+            environment: {
+                icon: 'CloudSun',
+                title: "What's the weather like?",
+                subtitle: "The Environment",
+                options: [
+                    { id: 'coastal', label: 'Coastal / Humid', desc: 'Breathable, light layers', emoji: '🌊' },
+                    { id: 'cold', label: 'Mountain / Cold', desc: 'Cozy outerwear, warmth', emoji: '❄️' },
+                    { id: 'urban', label: 'Urban / Trendy', desc: 'Street style, walkable', emoji: '🏙️' },
+                    { id: 'relaxed', label: 'Suburban / Relaxed', desc: 'Comfort-first, durable', emoji: '🏡' },
+                ]
+            },
+            people: {
+                icon: 'Users',
+                title: "Who are you dressing for?",
+                subtitle: "The Audience",
+                options: [
+                    { id: 'friends', label: 'Close Friends', desc: 'Expressive, low-pressure', emoji: '👯' },
+                    { id: 'date', label: 'First Date', desc: 'Memorable, confidence-boosting', emoji: '💕' },
+                    { id: 'colleagues', label: 'Work Colleagues', desc: 'Sharp, professional', emoji: '🤝' },
+                    { id: 'social', label: 'Big Social Event', desc: 'Statement-making, photogenic', emoji: '📸' },
+                ]
+            }
+        };
+
+        const STEPS = ['gender', 'occasion', 'mood', 'environment', 'people'];
+
+        const getHMLink = (piece, gender) => {
+            const q = encodeURIComponent(piece);
+            const g = gender === 'women' ? 'ladies' : 'men';
+            return `https://www2.hm.com/en_us/search-results.html?q=${q}&department=${g}`;
+        };
+
+        function VibeCheck() {
+            const [step, setStep] = useState(0);
+            const [answers, setAnswers] = useState({});
+            const [loading, setLoading] = useState(false);
+            const [result, setResult] = useState(null);
+            const [fadeIn, setFadeIn] = useState(true);
+            const [savedLooks, setSavedLooks] = useState([]);
+            const [showSaved, setShowSaved] = useState(false);
+            const [showShare, setShowShare] = useState(false);
+            const [copied, setCopied] = useState(false);
+            const [revealedCards, setRevealedCards] = useState([]);
+
+            const currentStepKey = STEPS[step];
+            const currentStepData = QUIZ_DATA[currentStepKey];
+            const progress = ((step) / STEPS.length) * 100;
+            const isComplete = step >= STEPS.length;
+
+            useEffect(() => {
+                setFadeIn(false);
+                const t = setTimeout(() => setFadeIn(true), 50);
+                return () => clearTimeout(t);
+            }, [step]);
+
+            useEffect(() => {
+                if (result && !loading) {
+                    setRevealedCards([]);
+                    result.outfits?.forEach((_, i) => {
+                        setTimeout(() => setRevealedCards(p => [...p, i]), 150 * (i + 1));
+                    });
+                }
+            }, [result, loading]);
+
+            const handleSelect = (id) => setAnswers(p => ({ ...p, [currentStepKey]: id }));
+
+            const handleNext = async () => {
+                if (step < STEPS.length - 1) setStep(step + 1);
+                else { setLoading(true); setStep(STEPS.length); await generateStyleRecipe(); }
+            };
+
+            const handleBack = () => { if (step > 0) setStep(step - 1); };
+
+            const reset = () => { setStep(0); setAnswers({}); setResult(null); setRevealedCards([]); };
+
+            const toggleSave = (outfit, idx) => {
+                const id = `${result.recipeName}-${idx}`;
+                if (savedLooks.find(s => s.id === id)) setSavedLooks(p => p.filter(s => s.id !== id));
+                else setSavedLooks(p => [...p, { ...outfit, id, recipeName: result.recipeName, pieces: outfit.pieces }]);
+            };
+
+            const isSaved = (idx) => savedLooks.find(s => s.id === `${result?.recipeName}-${idx}`);
+
+            const shareText = result ? `Check out my H&M Vibe Check style recipe: "${result.recipeName}" ✨` : '';
+
+            const copyLink = () => { navigator.clipboard.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+
+            const getGradient = (tag) => OUTFIT_GRADIENTS[tag] || { from: "#667eea", to: "#764ba2", icon: "👗" };
+
+            const generateStyleRecipe = async () => {
+                const gender = answers.gender === 'women' ? "women's" : "men's";
+                const occ = QUIZ_DATA.occasion.options.find(o => o.id === answers.occasion)?.label;
+                const mood = QUIZ_DATA.mood.options.find(o => o.id === answers.mood)?.label;
+                const env = QUIZ_DATA.environment.options.find(o => o.id === answers.environment)?.label;
+                const ppl = QUIZ_DATA.people.options.find(o => o.id === answers.people)?.label;
+
+                // Simulate AI generation with curated results
+                await new Promise(r => setTimeout(r, 2000));
+                
+                const recipes = {
+                    formal: {
+                        women: {
+                            chic: { name: "The Executive Elegance", pieces: [["Tailored Blazer", "Silk Blouse", "High-Waist Trousers", "Pointed Heels"], ["Cashmere Coat", "Pencil Skirt", "Leather Belt", "Structured Tote"], ["Sheath Dress", "Pearl Earrings", "Nude Pumps", "Clutch Bag"], ["Wool Blazer", "Wide-Leg Pants", "Loafers", "Gold Watch"], ["Cotton Shirt", "Straight Trousers", "Ballet Flats", "Simple Necklace"]] },
+                            bold: { name: "The Power Player", pieces: [["Leather Blazer", "Black Trousers", "Statement Heels", "Bold Earrings"], ["Structured Dress", "Metallic Belt", "Ankle Boots", "Cuff Bracelet"], ["Velvet Jacket", "Silk Pants", "Platform Heels", "Chain Necklace"], ["Faux Leather Pants", "Turtleneck", "Stilettos", "Clutch"], ["Black Jumpsuit", "Gold Hoops", "Strappy Heels", "Evening Bag"]] },
+                            boho: { name: "The Artistic Professional", pieces: [["Flowy Blazer", "Printed Blouse", "Wide Trousers", "Wedge Heels"], ["Embroidered Dress", "Layered Necklaces", "Suede Boots", "Woven Bag"], ["Linen Suit", "Silk Scarf", "Block Heels", "Leather Tote"], ["Maxi Dress", "Statement Belt", "Sandal Heels", "Bangle Set"], ["Relaxed Blazer", "Palazzo Pants", "Espadrilles", "Tassel Earrings"]] },
+                            classic: { name: "The Timeless Executive", pieces: [["Navy Blazer", "White Blouse", "Camel Trousers", "Classic Pumps"], ["Trench Coat", "Sheath Dress", "Pearl Necklace", "Leather Bag"], ["Wool Coat", "Cashmere Sweater", "Pencil Skirt", "Kitten Heels"], ["Double-Breasted Blazer", "Silk Shirt", "Tailored Pants", "Oxford Shoes"], ["Camel Coat", "Black Dress", "Gold Studs", "Structured Bag"]] }
+                        },
+                        men: {
+                            chic: { name: "The Modern Gentleman", pieces: [["Slim Fit Suit", "Crisp White Shirt", "Leather Oxford Shoes", "Minimalist Watch"], ["Navy Blazer", "Grey Trousers", "Suede Loafers", "Pocket Square"], ["Charcoal Suit", "Light Blue Shirt", "Brown Brogues", "Leather Belt"], ["Wool Coat", "Turtleneck", "Dress Pants", "Chelsea Boots"], ["Cotton Shirt", "Chinos", "Desert Boots", "Simple Watch"]] },
+                            bold: { name: "The Power Statement", pieces: [["Black Suit", "Black Shirt", "Patent Leather Shoes", "Silver Cufflinks"], ["Leather Jacket", "Dark Jeans", "Combat Boots", "Chain Bracelet"], ["Velvet Blazer", "Silk Shirt", "Dress Boots", "Statement Ring"], ["Double-Breasted Coat", "Turtleneck", "Slim Pants", "Bold Watch"], ["Textured Blazer", "Black Trousers", "Monk Straps", "Tie Bar"]] },
+                            boho: { name: "The Creative Executive", pieces: [["Linen Blazer", "Printed Shirt", "Relaxed Trousers", "Suede Shoes"], ["Textured Jacket", "Henley Shirt", "Chinos", "Leather Sandals"], ["Unstructured Suit", "Collarless Shirt", "Woven Belt", "Espadrilles"], ["Cotton Blazer", "Chambray Shirt", "Linen Pants", "Canvas Sneakers"], ["Knit Cardigan", "White Tee", "Tailored Shorts", "Boat Shoes"]] },
+                            classic: { name: "The Distinguished Professional", pieces: [["Navy Suit", "White Oxford Shirt", "Burgundy Tie", "Cap Toe Oxfords"], ["Charcoal Blazer", "Light Blue Shirt", "Grey Flannel Trousers", "Penny Loafers"], ["Camel Overcoat", "Merino Sweater", "Wool Trousers", "Derby Shoes"], ["Pinstripe Suit", "French Cuff Shirt", "Silk Tie", "Cufflinks"], ["Tweed Jacket", "Tattersall Shirt", "Corduroy Pants", "Brogues"]] }
+                        }
+                    },
+                    party: {
+                        women: {
+                            chic: { name: "The Sunset Sophisticate", pieces: [["Slip Dress", "Strappy Heels", "Delicate Necklace", "Clutch Bag"], ["Satin Top", "Wide Trousers", "Mules", "Gold Earrings"], ["Midi Skirt", "Crop Top", "Block Heels", "Chain Bag"], ["Jumpsuit", "Statement Earrings", "Wedges", "Bangle"], ["Wrap Dress", "Sandal Heels", "Simple Studs", "Wristlet"]] },
+                            bold: { name: "The Party Maven", pieces: [["Sequin Mini Dress", "Platform Heels", "Statement Earrings", "Box Clutch"], ["Metallic Top", "Leather Pants", "Stilettos", "Bold Necklace"], ["Feather Trim Dress", "Strappy Heels", "Cuff Bracelet", "Evening Bag"], ["Cutout Dress", "Ankle Boots", "Chandelier Earrings", "Chain Bag"], ["Velvet Jumpsuit", "Gold Heels", "Cocktail Ring", "Minaudière"]] },
+                            boho: { name: "The Beach Goddess", pieces: [["Flowy Maxi Dress", "Gladiator Sandals", "Layered Necklaces", "Woven Clutch"], ["Crochet Top", "Wide Leg Pants", "Espadrille Wedges", "Tassel Earrings"], ["Printed Kaftan", "Strappy Sandals", "Shell Jewelry", "Straw Bag"], ["Tiered Dress", "Platform Sandals", "Beaded Bracelets", "Fringe Bag"], ["Off-Shoulder Top", "Flowy Skirt", "Ankle Wrap Sandals", "Hoop Earrings"]] },
+                            classic: { name: "The Elegant Celebrant", pieces: [["A-Line Dress", "Kitten Heels", "Pearl Studs", "Satin Clutch"], ["Fit & Flare Dress", "Block Heels", "Tennis Bracelet", "Structured Bag"], ["Halter Dress", "Strappy Sandals", "Drop Earrings", "Evening Bag"], ["Pleated Midi", "Elegant Pumps", "Simple Necklace", "Envelope Clutch"], ["Sheath Dress", "Slingback Heels", "Classic Watch", "Leather Clutch"]] }
+                        },
+                        men: {
+                            chic: { name: "The Effortless Host", pieces: [["Linen Shirt", "Tailored Shorts", "Leather Sandals", "Minimalist Watch"], ["Camp Collar Shirt", "Chinos", "Suede Loafers", "Woven Bracelet"], ["Knit Polo", "Linen Pants", "Espadrilles", "Sunglasses"], ["Short Sleeve Shirt", "Relaxed Trousers", "Canvas Sneakers", "Leather Belt"], ["Henley Shirt", "Cotton Shorts", "Boat Shoes", "Simple Band"]] },
+                            bold: { name: "The Life of the Party", pieces: [["Printed Shirt", "Black Jeans", "Chelsea Boots", "Chain Necklace"], ["Silk Shirt", "Leather Pants", "Cuban Heels", "Statement Ring"], ["Embroidered Jacket", "Dark Trousers", "Dress Boots", "Bold Watch"], ["Velvet Shirt", "Slim Pants", "Patent Loafers", "Bracelet Stack"], ["Metallic Blazer", "Black Tee", "Ankle Boots", "Ear Cuff"]] },
+                            boho: { name: "The Free Spirit", pieces: [["Embroidered Shirt", "Linen Pants", "Leather Sandals", "Beaded Bracelet"], ["Printed Camp Shirt", "Drawstring Shorts", "Espadrilles", "Shell Necklace"], ["Crochet Shirt", "Wide Leg Pants", "Woven Slides", "Layered Chains"], ["Tie-Dye Tee", "Cotton Pants", "Canvas Slip-ons", "Woven Belt"], ["Open Knit Shirt", "Relaxed Shorts", "Rope Sandals", "Wooden Beads"]] },
+                            classic: { name: "The Polished Guest", pieces: [["Polo Shirt", "Tailored Shorts", "Leather Loafers", "Classic Watch"], ["Oxford Shirt", "Chinos", "Suede Drivers", "Leather Belt"], ["Linen Blazer", "Cotton Pants", "Canvas Sneakers", "Pocket Square"], ["Button-Down Shirt", "Bermuda Shorts", "Boat Shoes", "Simple Band"], ["Knit Polo", "Pressed Shorts", "Penny Loafers", "Metal Bracelet"]] }
+                        }
+                    },
+                    casual: {
+                        women: {
+                            chic: { name: "The Brunch Beauty", pieces: [["Oversized Blazer", "White Tee", "Straight Jeans", "Leather Loafers"], ["Knit Cardigan", "Tank Top", "Wide Leg Pants", "Mules"], ["Trench Coat", "Striped Shirt", "High-Waist Jeans", "Ballet Flats"], ["Cashmere Sweater", "Midi Skirt", "Ankle Boots", "Tote Bag"], ["Cotton Blouse", "Tailored Shorts", "Sandals", "Crossbody Bag"]] },
+                            bold: { name: "The Weekend Warrior", pieces: [["Leather Jacket", "Band Tee", "Ripped Jeans", "Combat Boots"], ["Oversized Hoodie", "Bike Shorts", "Chunky Sneakers", "Chain Necklace"], ["Denim Jacket", "Graphic Tee", "Cargo Pants", "Platform Shoes"], ["Moto Jacket", "Black Jeans", "Ankle Boots", "Studded Belt"], ["Bomber Jacket", "Crop Top", "High-Waist Pants", "Bold Earrings"]] },
+                            boho: { name: "The Sunday Wanderer", pieces: [["Flowy Cardigan", "Cami Top", "Linen Pants", "Woven Sandals"], ["Embroidered Blouse", "Denim Shorts", "Gladiator Sandals", "Layered Necklaces"], ["Printed Kimono", "Tank Top", "Wide Leg Jeans", "Suede Boots"], ["Crochet Top", "Maxi Skirt", "Flat Sandals", "Tassel Bag"], ["Peasant Blouse", "Mom Jeans", "Espadrilles", "Beaded Bracelet"]] },
+                            classic: { name: "The Refined Relaxer", pieces: [["Striped Breton", "Chinos", "White Sneakers", "Canvas Tote"], ["Cashmere Cardigan", "White Tee", "Dark Jeans", "Leather Flats"], ["Cotton Shirt", "Tailored Shorts", "Espadrilles", "Simple Watch"], ["V-Neck Sweater", "Straight Leg Pants", "Loafers", "Pearl Studs"], ["Polo Shirt", "Khaki Shorts", "Canvas Sneakers", "Leather Belt"]] }
+                        },
+                        men: {
+                            chic: { name: "The Effortless Gentleman", pieces: [["Cotton Overshirt", "White Tee", "Slim Chinos", "Clean Sneakers"], ["Knit Sweater", "Oxford Shirt", "Dark Jeans", "Suede Shoes"], ["Linen Shirt", "Tailored Shorts", "Leather Sandals", "Minimalist Watch"], ["Cardigan", "Henley", "Straight Jeans", "Chelsea Boots"], ["Bomber Jacket", "Tee", "Joggers", "Runner Sneakers"]] },
+                            bold: { name: "The Street Style King", pieces: [["Leather Jacket", "Graphic Tee", "Black Jeans", "High-Top Sneakers"], ["Oversized Hoodie", "Cargo Pants", "Chunky Sneakers", "Chain"], ["Denim Jacket", "Band Tee", "Ripped Jeans", "Combat Boots"], ["Puffer Vest", "Turtleneck", "Track Pants", "Bold Sneakers"], ["Bomber", "Printed Shirt", "Joggers", "Platform Shoes"]] },
+                            boho: { name: "The Relaxed Creative", pieces: [["Linen Overshirt", "Tank Top", "Drawstring Pants", "Sandals"], ["Printed Camp Shirt", "Cotton Shorts", "Espadrilles", "Beaded Bracelet"], ["Open Cardigan", "Graphic Tee", "Relaxed Jeans", "Canvas Sneakers"], ["Embroidered Shirt", "Linen Shorts", "Leather Slides", "Woven Belt"], ["Kimono Jacket", "Tank", "Wide Pants", "Rope Sandals"]] },
+                            classic: { name: "The Weekend Classic", pieces: [["Polo Shirt", "Chinos", "Leather Sneakers", "Canvas Belt"], ["Oxford Button-Down", "Dark Jeans", "Desert Boots", "Simple Watch"], ["Crewneck Sweater", "Khakis", "Boat Shoes", "Leather Bracelet"], ["Rugby Shirt", "Shorts", "Canvas Sneakers", "Baseball Cap"], ["V-Neck Tee", "Tailored Joggers", "Clean Sneakers", "Minimal Watch"]] }
+                        }
+                    },
+                    nightout: {
+                        women: {
+                            chic: { name: "The City Siren", pieces: [["Satin Slip Dress", "Strappy Heels", "Delicate Chain", "Mini Bag"], ["Blazer Dress", "Pointed Pumps", "Gold Hoops", "Clutch"], ["Silk Cami", "Tailored Pants", "Stilettos", "Statement Ring"], ["One-Shoulder Top", "Leather Pants", "Mules", "Chain Bag"], ["Midi Skirt", "Crop Top", "Ankle Boots", "Ear Cuff"]] },
+                            bold: { name: "The Night Prowler", pieces: [["Sequin Mini", "Platform Boots", "Bold Earrings", "Chain Bag"], ["Leather Dress", "Stiletto Boots", "Cuff Bracelet", "Box Clutch"], ["Mesh Top", "High-Waist Pants", "Strappy Heels", "Choker"], ["Cutout Dress", "Ankle Boots", "Statement Necklace", "Ring Stack"], ["Bodysuit", "Vinyl Pants", "Platform Heels", "Ear Climbers"]] },
+                            boho: { name: "The Midnight Bohemian", pieces: [["Velvet Dress", "Suede Boots", "Layered Necklaces", "Fringe Bag"], ["Lace Top", "Flared Jeans", "Platform Sandals", "Statement Rings"], ["Embroidered Jacket", "Mini Dress", "Ankle Boots", "Tassel Earrings"], ["Printed Jumpsuit", "Block Heels", "Cuff Bracelet", "Crossbody"], ["Off-Shoulder Dress", "Wedge Boots", "Beaded Jewelry", "Suede Bag"]] },
+                            classic: { name: "The Elegant Night Owl", pieces: [["Little Black Dress", "Classic Pumps", "Diamond Studs", "Satin Clutch"], ["Tuxedo Blazer", "Silk Cami", "Tailored Pants", "Kitten Heels"], ["Wrap Dress", "Strappy Sandals", "Pearl Earrings", "Envelope Bag"], ["Sheath Dress", "Pointed Heels", "Tennis Bracelet", "Evening Bag"], ["Jumpsuit", "Block Heels", "Simple Necklace", "Leather Clutch"]] }
+                        },
+                        men: {
+                            chic: { name: "The Urban Sophisticate", pieces: [["Dark Blazer", "Black Tee", "Slim Jeans", "Chelsea Boots"], ["Leather Jacket", "White Shirt", "Dark Trousers", "Dress Boots"], ["Cashmere Sweater", "Tailored Pants", "Suede Loafers", "Minimal Watch"], ["Bomber Jacket", "Mock Neck", "Black Jeans", "Clean Sneakers"], ["Overcoat", "Turtleneck", "Slim Pants", "Oxford Shoes"]] },
+                            bold: { name: "The Night Commander", pieces: [["Leather Biker Jacket", "Band Tee", "Ripped Jeans", "Combat Boots"], ["Velvet Blazer", "Silk Shirt", "Slim Pants", "Cuban Heels"], ["All Black Suit", "Black Shirt", "Patent Shoes", "Statement Watch"], ["Studded Jacket", "Graphic Tee", "Leather Pants", "Harness Boots"], ["Double Rider Jacket", "Turtleneck", "Skinny Jeans", "Chunky Boots"]] },
+                            boho: { name: "The Creative Night", pieces: [["Embroidered Jacket", "Printed Shirt", "Dark Jeans", "Suede Boots"], ["Velvet Shirt", "Relaxed Pants", "Leather Sandals", "Layered Chains"], ["Fringed Jacket", "Henley", "Slim Jeans", "Western Boots"], ["Printed Blazer", "Black Tee", "Chinos", "Ankle Boots"], ["Kimono Jacket", "Tank", "Wide Pants", "Statement Ring"]] },
+                            classic: { name: "The Gentleman's Night", pieces: [["Navy Blazer", "White Shirt", "Dark Jeans", "Brown Derbies"], ["Charcoal Suit Jacket", "Light Sweater", "Tailored Pants", "Leather Loafers"], ["Wool Overcoat", "Oxford Shirt", "Chinos", "Chelsea Boots"], ["Sport Coat", "Polo", "Dark Trousers", "Suede Shoes"], ["Peacoat", "Cashmere Scarf", "Dress Pants", "Cap Toe Boots"]] }
+                        }
+                    },
+                    cocktail: {
+                        women: {
+                            chic: { name: "The Rooftop Rendezvous", pieces: [["Sleek Jumpsuit", "Strappy Heels", "Gold Earrings", "Structured Clutch"], ["Midi Dress", "Pointed Pumps", "Delicate Necklace", "Mini Bag"], ["Tailored Dress", "Kitten Heels", "Pearl Studs", "Envelope Clutch"], ["Satin Top", "High-Waist Pants", "Mules", "Chain Bag"], ["Wrap Dress", "Block Heels", "Simple Bracelet", "Leather Bag"]] },
+                            bold: { name: "The Skyline Star", pieces: [["Metallic Dress", "Platform Heels", "Statement Earrings", "Box Clutch"], ["Sequin Top", "Leather Pants", "Stilettos", "Cuff Bracelet"], ["Feather Trim Dress", "Strappy Heels", "Bold Necklace", "Minaudière"], ["Cutout Jumpsuit", "Platform Sandals", "Chandelier Earrings", "Chain Bag"], ["Velvet Mini", "Ankle Boots", "Cocktail Ring", "Evening Bag"]] },
+                            boho: { name: "The Sunset Socialite", pieces: [["Flowy Midi Dress", "Strappy Wedges", "Layered Gold Chains", "Woven Clutch"], ["Embroidered Top", "Wide Leg Pants", "Platform Sandals", "Statement Earrings"], ["Printed Maxi", "Block Heels", "Bangle Stack", "Crossbody Bag"], ["Off-Shoulder Dress", "Espadrille Wedges", "Tassel Earrings", "Straw Clutch"], ["Tiered Dress", "Gladiator Heels", "Beaded Necklace", "Fringe Bag"]] },
+                            classic: { name: "The Polished Partygoer", pieces: [["Fit & Flare Dress", "Classic Pumps", "Pearl Necklace", "Satin Clutch"], ["Sheath Dress", "Slingback Heels", "Diamond Studs", "Structured Bag"], ["A-Line Dress", "Kitten Heels", "Tennis Bracelet", "Envelope Clutch"], ["Cocktail Dress", "Strappy Sandals", "Drop Earrings", "Evening Bag"], ["Pleated Midi", "Block Heels", "Simple Watch", "Leather Clutch"]] }
+                        },
+                        men: {
+                            chic: { name: "The Rooftop Regular", pieces: [["Tailored Blazer", "Crisp Shirt", "Slim Chinos", "Suede Loafers"], ["Knit Blazer", "Mock Neck", "Tailored Pants", "Leather Shoes"], ["Linen Suit Jacket", "Open Collar Shirt", "Dress Pants", "Woven Loafers"], ["Cotton Blazer", "Polo Shirt", "Chinos", "Clean Sneakers"], ["Unstructured Jacket", "Tee", "Tailored Trousers", "Desert Boots"]] },
+                            bold: { name: "The Skyline Statement", pieces: [["Velvet Jacket", "Black Shirt", "Slim Pants", "Patent Loafers"], ["Embroidered Blazer", "Silk Tee", "Dark Jeans", "Chelsea Boots"], ["Metallic Blazer", "Turtleneck", "Tailored Trousers", "Dress Boots"], ["Brocade Jacket", "Black Mock Neck", "Slim Pants", "Cuban Heels"], ["Leather Blazer", "Graphic Tee", "Dark Chinos", "Statement Boots"]] },
+                            boho: { name: "The Artistic Evening", pieces: [["Linen Blazer", "Printed Shirt", "Relaxed Pants", "Suede Shoes"], ["Embroidered Jacket", "Henley", "Chinos", "Leather Sandals"], ["Textured Sport Coat", "Collarless Shirt", "Wide Trousers", "Woven Loafers"], ["Cotton Blazer", "Camp Shirt", "Linen Pants", "Espadrilles"], ["Unstructured Jacket", "Printed Tee", "Relaxed Chinos", "Canvas Sneakers"]] },
+                            classic: { name: "The Refined Host", pieces: [["Navy Blazer", "Light Blue Shirt", "Cream Chinos", "Brown Loafers"], ["Charcoal Sport Coat", "White Shirt", "Grey Trousers", "Oxford Shoes"], ["Camel Blazer", "Striped Shirt", "Navy Pants", "Suede Derbies"], ["Tweed Jacket", "Oxford Shirt", "Chinos", "Penny Loafers"], ["Wool Blazer", "Cashmere Sweater", "Tailored Pants", "Cap Toe Shoes"]] }
+                        }
+                    },
+                    travel: {
+                        women: {
+                            chic: { name: "The Jet Set Minimalist", pieces: [["Oversized Blazer", "Basic Tee", "Straight Leg Pants", "Clean Sneakers"], ["Cashmere Cardigan", "Tank Top", "Wide Leg Trousers", "Slip-On Loafers"], ["Trench Coat", "White Tee", "High-Waist Jeans", "Comfortable Flats"], ["Knit Set", "Simple Sneakers", "Leather Tote", "Sunglasses"], ["Relaxed Blazer", "Linen Pants", "Espadrilles", "Crossbody Bag"]] },
+                            bold: { name: "The Adventurous Traveler", pieces: [["Leather Jacket", "Graphic Tee", "Cargo Pants", "Combat Boots"], ["Oversized Denim Jacket", "Hoodie", "Joggers", "Chunky Sneakers"], ["Bomber Jacket", "Band Tee", "High-Waist Jeans", "Platform Sneakers"], ["Utility Vest", "Long Sleeve Tee", "Cargo Joggers", "Trail Sneakers"], ["Moto Jacket", "Basic Tee", "Black Jeans", "Ankle Boots"]] },
+                            boho: { name: "The Wanderlust Dreamer", pieces: [["Flowy Cardigan", "Cami Top", "Linen Pants", "Comfortable Sandals"], ["Embroidered Jacket", "Basic Tee", "Wide Leg Jeans", "Espadrilles"], ["Printed Kimono", "Tank", "Joggers", "Slip-On Sneakers"], ["Long Vest", "Relaxed Tee", "Flowy Pants", "Woven Slides"], ["Duster Cardigan", "Maxi Dress", "Flat Sandals", "Large Tote"]] },
+                            classic: { name: "The Polished Traveler", pieces: [["Camel Coat", "Striped Shirt", "Dark Jeans", "Leather Loafers"], ["Cashmere Sweater", "White Tee", "Chinos", "Ballet Flats"], ["Trench Coat", "Oxford Shirt", "Tailored Pants", "Comfortable Sneakers"], ["Wool Cardigan", "Basic Tee", "Straight Jeans", "Slip-On Shoes"], ["Classic Blazer", "Silk Blouse", "Travel Pants", "Low Heels"]] }
+                        },
+                        men: {
+                            chic: { name: "The First Class Flyer", pieces: [["Cotton Overshirt", "White Tee", "Tailored Joggers", "Clean Sneakers"], ["Knit Cardigan", "Henley", "Chinos", "Suede Loafers"], ["Linen Blazer", "Basic Tee", "Relaxed Pants", "Slip-On Shoes"], ["Bomber Jacket", "Mock Neck", "Travel Pants", "Minimalist Sneakers"], ["Zip Sweater", "Oxford Shirt", "Dark Jeans", "Comfortable Boots"]] },
+                            bold: { name: "The Globe Trotter", pieces: [["Leather Jacket", "Graphic Tee", "Cargo Pants", "High-Top Sneakers"], ["Puffer Jacket", "Hoodie", "Joggers", "Trail Shoes"], ["Denim Jacket", "Band Tee", "Black Jeans", "Combat Boots"], ["Utility Jacket", "Long Sleeve Tee", "Cargo Joggers", "Chunky Sneakers"], ["Bomber", "Printed Tee", "Track Pants", "Bold Sneakers"]] },
+                            boho: { name: "The Wandering Spirit", pieces: [["Linen Overshirt", "Tank", "Drawstring Pants", "Leather Sandals"], ["Open Cardigan", "Basic Tee", "Relaxed Jeans", "Canvas Sneakers"], ["Kimono Jacket", "Henley", "Wide Pants", "Espadrilles"], ["Embroidered Shirt", "Shorts", "Woven Slides", "Beaded Bracelet"], ["Long Vest", "Graphic Tee", "Linen Pants", "Sandals"]] },
+                            classic: { name: "The Distinguished Traveler", pieces: [["Wool Overcoat", "Cashmere Sweater", "Chinos", "Leather Boots"], ["Cotton Blazer", "Oxford Shirt", "Dark Jeans", "Desert Boots"], ["Harrington Jacket", "Polo", "Tailored Pants", "Suede Shoes"], ["Knit Cardigan", "Button-Down", "Travel Pants", "Loafers"], ["Trench Coat", "Crewneck", "Straight Jeans", "Clean Sneakers"]] }
+                        }
+                    },
+                    gallery: {
+                        women: {
+                            chic: { name: "The Art Curator", pieces: [["Structured Blazer", "Turtleneck", "Wide Leg Pants", "Pointed Flats"], ["Minimalist Dress", "Ankle Boots", "Architectural Earrings", "Leather Bag"], ["Oversized Shirt", "Tailored Trousers", "Loafers", "Simple Watch"], ["Knit Top", "Midi Skirt", "Mules", "Structured Tote"], ["Column Dress", "Block Heels", "Cuff Bracelet", "Clutch"]] },
+                            bold: { name: "The Avant-Garde", pieces: [["Deconstructed Blazer", "Asymmetric Top", "Wide Pants", "Platform Shoes"], ["Sculptural Dress", "Statement Boots", "Geometric Earrings", "Art Bag"], ["Leather Top", "Pleated Skirt", "Chunky Heels", "Bold Ring"], ["Oversized Coat", "Bodysuit", "Tailored Pants", "Architectural Jewelry"], ["Structured Jumpsuit", "Platform Boots", "Statement Necklace", "Box Clutch"]] },
+                            boho: { name: "The Creative Soul", pieces: [["Flowy Kimono", "Simple Tee", "Wide Leg Pants", "Flat Sandals"], ["Embroidered Blouse", "Midi Skirt", "Block Heels", "Woven Bag"], ["Printed Dress", "Ankle Boots", "Layered Necklaces", "Crossbody"], ["Linen Jacket", "Cami", "Wide Trousers", "Espadrilles"], ["Textured Cardigan", "Maxi Dress", "Flat Boots", "Statement Earrings"]] },
+                            classic: { name: "The Refined Patron", pieces: [["Camel Coat", "Black Turtleneck", "Tailored Pants", "Leather Loafers"], ["Wool Blazer", "White Shirt", "Pencil Skirt", "Kitten Heels"], ["Cashmere Sweater", "Wide Leg Trousers", "Ballet Flats", "Pearl Studs"], ["Sheath Dress", "Structured Bag", "Simple Pumps", "Classic Watch"], ["Trench Coat", "Silk Blouse", "Chinos", "Oxford Shoes"]] }
+                        },
+                        men: {
+                            chic: { name: "The Modern Aesthete", pieces: [["Unstructured Blazer", "Mock Neck", "Wide Trousers", "Minimal Sneakers"], ["Oversized Coat", "Turtleneck", "Tailored Pants", "Leather Loafers"], ["Knit Cardigan", "Simple Tee", "Relaxed Pants", "Suede Shoes"], ["Cotton Blazer", "Collarless Shirt", "Chinos", "Clean Sneakers"], ["Wool Overshirt", "Basic Tee", "Wide Jeans", "Minimal Boots"]] },
+                            bold: { name: "The Contemporary Collector", pieces: [["Sculptural Jacket", "Graphic Tee", "Wide Pants", "Statement Sneakers"], ["Leather Coat", "Turtleneck", "Tailored Trousers", "Bold Boots"], ["Oversized Blazer", "Asymmetric Shirt", "Relaxed Pants", "Platform Shoes"], ["Deconstructed Coat", "Mock Neck", "Wide Trousers", "Architectural Shoes"], ["Statement Jacket", "All Black", "Slim Pants", "Chunky Boots"]] },
+                            boho: { name: "The Artistic Mind", pieces: [["Linen Blazer", "Printed Shirt", "Relaxed Chinos", "Suede Loafers"], ["Textured Cardigan", "Henley", "Wide Pants", "Leather Sandals"], ["Embroidered Jacket", "Simple Tee", "Linen Trousers", "Espadrilles"], ["Open Overshirt", "Tank", "Drawstring Pants", "Canvas Sneakers"], ["Kimono Jacket", "Basic Tee", "Wide Jeans", "Woven Slides"]] },
+                            classic: { name: "The Cultured Gentleman", pieces: [["Navy Blazer", "Oxford Shirt", "Grey Flannel Trousers", "Brown Brogues"], ["Camel Overcoat", "Cashmere Sweater", "Dark Jeans", "Chelsea Boots"], ["Tweed Jacket", "Turtleneck", "Tailored Pants", "Suede Loafers"], ["Wool Coat", "White Shirt", "Chinos", "Leather Derbies"], ["Sport Coat", "Merino Sweater", "Dress Pants", "Oxford Shoes"]] }
+                        }
+                    }
+                };
+
+                const occasionKey = answers.occasion || 'casual';
+                const moodKey = answers.mood || 'chic';
+                const genderKey = answers.gender || 'women';
+                
+                const recipeData = recipes[occasionKey]?.[genderKey]?.[moodKey] || recipes.casual[genderKey].chic;
+                
+                const colorPalettes = {
+                    chic: [{ name: "Soft Ivory", hex: "#FFFFF0" }, { name: "Warm Taupe", hex: "#8B7355" }, { name: "Charcoal", hex: "#36454F" }],
+                    bold: [{ name: "Jet Black", hex: "#0A0A0A" }, { name: "Electric Red", hex: "#FF0040" }, { name: "Metallic Gold", hex: "#D4AF37" }],
+                    boho: [{ name: "Terracotta", hex: "#E2725B" }, { name: "Sage Green", hex: "#9CAF88" }, { name: "Warm Sand", hex: "#C2B280" }],
+                    classic: [{ name: "Navy Blue", hex: "#1B3A57" }, { name: "Camel", hex: "#C19A6B" }, { name: "Crisp White", hex: "#FEFEFA" }]
+                };
+
+                const tags = ["Vibe Match", "Weather Ready", "Social Star", "Day-to-Night", "Budget Friendly"];
+
+                setResult({
+                    recipeName: recipeData.name,
+                    tagline: `Curated ${gender} style for ${occ?.toLowerCase()}`,
+                    colorPalette: colorPalettes[moodKey] || colorPalettes.chic,
+                    keyFabrics: moodKey === 'chic' ? ["Premium Cotton", "Silk Blend"] : moodKey === 'bold' ? ["Leather", "Velvet"] : moodKey === 'boho' ? ["Linen", "Cotton Gauze"] : ["Wool", "Cashmere"],
+                    silhouette: moodKey === 'chic' ? "Clean lines with relaxed tailoring" : moodKey === 'bold' ? "Structured with statement proportions" : moodKey === 'boho' ? "Flowy and layered with natural drape" : "Timeless cuts with refined details",
+                    mustHave: recipeData.pieces[0][0],
+                    stylingTip: moodKey === 'chic' ? "Less is more - let quality speak" : moodKey === 'bold' ? "One statement piece anchors the look" : moodKey === 'boho' ? "Layer textures for depth" : "Invest in perfect fit",
+                    outfits: recipeData.pieces.map((pieces, i) => ({
+                        name: `Look ${i + 1}: The ${['Signature', 'Climate', 'Social', 'Versatile', 'Smart'][i]} Edit`,
+                        tag: tags[i],
+                        description: `${['Your perfect vibe match for this occasion.', 'Optimized for comfort in any weather.', 'Designed to make a memorable impression.', 'Seamlessly transitions from day to evening.', 'Maximum style with smart spending.'][i]} Curated pieces that work beautifully together.`,
+                        pieces: pieces
+                    }))
+                });
+
+                setLoading(false);
+            };
+
+            const Option = ({ option, selected, onClick }) => (
+                <button onClick={onClick} className={`group w-full text-left p-5 rounded-2xl border-2 transition-all duration-300 ${selected ? 'border-red-500 bg-gradient-to-br from-red-50 to-pink-50 scale-[1.02] shadow-xl shadow-red-100' : 'border-gray-100 bg-white hover:border-red-200 hover:shadow-lg hover:scale-[1.01]'}`}>
+                    <div className="flex items-start gap-4">
+                        <span className="text-2xl">{option.emoji}</span>
+                        <div className="flex-1">
+                            <p className={`font-bold text-lg ${selected ? 'text-red-600' : 'text-gray-900'}`}>{option.label}</p>
+                            <p className="text-sm text-gray-500 mt-1">{option.desc}</p>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selected ? 'border-red-500 bg-red-500' : 'border-gray-300'}`}>
+                            {selected && <Icons.Check />}
+                        </div>
+                    </div>
+                </button>
+            );
+
+            const OutfitCard = ({ outfit, idx }) => {
+                const revealed = revealedCards.includes(idx);
+                const gradient = getGradient(outfit.tag);
+                
+                return (
+                    <div className={`group bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-700 transform hover:-translate-y-2 border border-gray-100 ${revealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`} style={{ transitionDelay: `${idx * 100}ms` }}>
+                        <div className="relative h-72 overflow-hidden" style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
+                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                    {outfit.pieces?.slice(0, 4).map((p, i) => (
+                                        <div key={i} className="flex flex-col items-center bg-white/15 backdrop-blur-sm rounded-xl p-3 min-w-16">
+                                            <span className="text-2xl mb-1">{getPieceIcon(p)}</span>
+                                            <span className="text-xs text-center font-medium leading-tight">{p}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                            <span className="absolute top-3 left-3 px-3 py-1.5 bg-white/95 backdrop-blur rounded-full text-xs font-bold text-gray-700 shadow flex items-center gap-1">
+                                <span>{gradient.icon}</span> {outfit.tag}
+                            </span>
+                            <button onClick={() => toggleSave(outfit, idx)} className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-lg ${isSaved(idx) ? 'bg-red-500 text-white' : 'bg-white/90 text-gray-600 hover:bg-red-500 hover:text-white'}`}>
+                                <Icons.Heart filled={isSaved(idx)} />
+                            </button>
+                            <div className="absolute bottom-3 left-3 right-3">
+                                <h4 className="text-xl font-bold text-white drop-shadow-lg">{outfit.name}</h4>
+                                
+                            </div>
+                        </div>
+                        <div className="p-5">
+                            <p className="text-gray-600 text-sm leading-relaxed">{outfit.description}</p>
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <p className="text-xs font-bold text-gray-400 uppercase mb-3">Shop Individual Pieces</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {outfit.pieces?.map((p, i) => (
+                                        <a key={i} href={getHMLink(p, answers.gender)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs bg-gray-50 text-gray-700 px-3 py-2 rounded-full border hover:border-red-400 hover:bg-red-50 hover:text-red-600 transition-all hover:shadow-md">
+                                            <span>{getPieceIcon(p)}</span>
+                                            <span className="font-medium">{p}</span>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                            <a href={`https://www2.hm.com/en_us/${answers.gender === 'men' ? 'men' : 'ladies'}.html`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 mt-5 py-3.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl font-bold text-sm hover:from-red-700 hover:to-red-600 transition shadow-lg shadow-red-200 hover:shadow-red-300 hover:scale-[1.02]">
+                                <Icons.ShoppingBag /> Shop Complete Look
+                            </a>
+                        </div>
+                    </div>
+                );
+            };
+
+            const IconComponent = ({ name }) => {
+                const Icon = Icons[name];
+                return Icon ? <Icon /> : null;
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <div className="absolute -top-40 -right-40 w-96 h-96 bg-red-200 opacity-30 rounded-full blur-3xl" />
+                        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-orange-200 opacity-30 rounded-full blur-3xl" />
+                    </div>
+
+                    {showSaved && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowSaved(false)}>
+                            <div className="bg-white rounded-3xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto modal-scroll" onClick={e => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xl font-bold flex items-center gap-2"><span className="text-red-500"><Icons.Bookmark /></span> Saved Looks ({savedLooks.length})</h3>
+                                    <button onClick={() => setShowSaved(false)} className="p-2 hover:bg-gray-100 rounded-full"><Icons.X /></button>
+                                </div>
+                                {savedLooks.length === 0 ? <p className="text-gray-500 text-center py-8">No saved looks yet. Tap the heart on any outfit to save it!</p> : (
+                                    <div className="space-y-3">
+                                        {savedLooks.map(look => {
+                                            const grad = getGradient(look.tag);
+                                            return (
+                                                <div key={look.id} className="flex gap-3 p-3 bg-gray-50 rounded-xl">
+                                                    <div className="w-16 h-20 rounded-lg flex flex-col items-center justify-center text-white shrink-0" style={{ background: `linear-gradient(135deg, ${grad.from}, ${grad.to})` }}>
+                                                        <span className="text-lg">{grad.icon}</span>
+                                                        <span className="text-lg">{getPieceIcon(look.pieces?.[0] || '')}</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-sm truncate">{look.name}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{look.recipeName}</p>
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {look.pieces?.slice(0, 2).map((p, i) => (
+                                                                <span key={i} className="text-xs bg-white px-1.5 py-0.5 rounded">{getPieceIcon(p)}</span>
+                                                            ))}
+                                                        </div>
+                                                        
+                                                    </div>
+                                                    <button onClick={() => setSavedLooks(p => p.filter(s => s.id !== look.id))} className="text-gray-400 hover:text-red-500 shrink-0"><Icons.X /></button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {showShare && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowShare(false)}>
+                            <div className="bg-white rounded-3xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xl font-bold">Share Your Style</h3>
+                                    <button onClick={() => setShowShare(false)} className="p-2 hover:bg-gray-100 rounded-full"><Icons.X /></button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3 mb-4">
+                                    <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl hover:bg-blue-50 transition">
+                                        <span className="text-blue-400"><Icons.Twitter /></span><span className="text-xs">Twitter</span>
+                                    </a>
+                                    <a href={`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl hover:bg-blue-50 transition">
+                                        <span className="text-blue-600"><Icons.Facebook /></span><span className="text-xs">Facebook</span>
+                                    </a>
+                                    <button onClick={copyLink} className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl hover:bg-green-50 transition">
+                                        <span className={copied ? 'text-green-500' : 'text-gray-600'}><Icons.Link2 /></span><span className="text-xs">{copied ? 'Copied!' : 'Copy'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="relative max-w-6xl mx-auto px-3 py-4 md:p-8">
+                        <header className="text-center mb-8 pt-4">
+                            <div className="flex justify-center items-center gap-4 mb-4">
+                                <div className="px-5 py-2.5 bg-red-600 text-white font-black text-2xl italic rounded-lg shadow-lg shadow-red-200">H&M</div>
+                                {savedLooks.length > 0 && (
+                                    <button onClick={() => setShowSaved(true)} className="relative p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition">
+                                        <span className="text-red-500"><Icons.Bookmark /></span>
+                                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{savedLooks.length}</span>
+                                    </button>
+                                )}
+                            </div>
+                            <h1 className="text-4xl md:text-6xl font-black text-gray-900">Vibe Check</h1>
+                            <p className="text-gray-500 mt-2 text-lg">AI-powered style recipes, curated just for you</p>
+                        </header>
+
+                        <div className="bg-white/80 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl p-4 md:p-10 border border-white/50">
+                            {!isComplete && (
+                                <div className="mb-8">
+                                    <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                                        <span className={step >= 0 ? 'text-red-500' : ''}>Style</span>
+                                        {STEPS.slice(1).map((s, i) => <span key={s} className={step > i ? 'text-red-500' : ''}>{QUIZ_DATA[s].subtitle}</span>)}
+                                        <span>Results</span>
+                                    </div>
+                                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-red-500 to-pink-500 transition-all duration-700 rounded-full" style={{ width: `${progress}%` }} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === 0 && (
+                                <div className={`min-h-[350px] md:min-h-[400px] transition-all duration-500 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                                    <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
+                                        <div className="p-2.5 md:p-3 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl md:rounded-2xl shadow-lg text-white"><Icons.User /></div>
+                                        <div><h2 className="text-2xl md:text-3xl font-black text-gray-900">Who are you shopping for?</h2><p className="text-gray-500 text-sm md:text-base">Select your style preference</p></div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[{ id: 'women', label: "Women's Fashion", desc: 'Dresses, skirts, blouses & more', emoji: '👗' }, { id: 'men', label: "Men's Fashion", desc: 'Suits, shirts, casual & more', emoji: '👔' }].map(o => (
+                                            <Option key={o.id} option={o} selected={answers.gender === o.id} onClick={() => handleSelect(o.id)} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isComplete && step > 0 && currentStepData && (
+                                <div className={`min-h-[350px] md:min-h-[400px] transition-all duration-500 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                                    <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
+                                        <div className="p-2.5 md:p-3 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl md:rounded-2xl shadow-lg text-white"><IconComponent name={currentStepData.icon} /></div>
+                                        <div><h2 className="text-2xl md:text-3xl font-black text-gray-900">{currentStepData.title}</h2><p className="text-gray-500 text-sm md:text-base">{currentStepData.subtitle}</p></div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {currentStepData.options.map(o => <Option key={o.id} option={o} selected={answers[currentStepKey] === o.id} onClick={() => handleSelect(o.id)} />)}
+                                    </div>
+                                </div>
+                            )}
+
+                            {isComplete && loading && (
+                                <div className="min-h-[350px] md:min-h-[400px] flex flex-col items-center justify-center">
+                                    <div className="relative"><div className="w-20 h-20 border-4 border-red-100 rounded-full" /><div className="absolute inset-0 w-20 h-20 border-4 border-red-500 rounded-full border-t-transparent animate-spin" /></div>
+                                    <p className="text-gray-800 font-bold text-xl mt-6">Creating your style recipe...</p>
+                                    <div className="flex gap-1 mt-4">{[0,1,2].map(i => <div key={i} className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}</div>
+                                </div>
+                            )}
+
+                            {isComplete && !loading && result && (
+                                <div className={`transition-all duration-700 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2.5 md:p-3 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl md:rounded-2xl shadow-lg text-white"><Icons.Sparkles /></div>
+                                            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Your Style Recipe</h2>
+                                        </div>
+                                        <button onClick={() => setShowShare(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full hover:bg-gray-200 transition font-semibold text-sm"><Icons.Share2 /> Share</button>
+                                    </div>
+
+                                    <div className="relative bg-gradient-to-br from-red-50 via-pink-50 to-orange-50 p-4 md:p-8 rounded-2xl md:rounded-3xl border border-red-100 mb-8 md:mb-10 overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-red-200/50 to-transparent rounded-full blur-2xl" />
+                                        <div className="relative">
+                                            <p className="text-sm font-bold text-red-500 uppercase tracking-wider">Your Signature Style</p>
+                                            <h3 className="text-2xl md:text-4xl font-black text-gray-900 mt-2">{result.recipeName}</h3>
+                                            <p className="text-gray-600 italic mt-2 text-base md:text-lg">"{result.tagline}"</p>
+
+                                            <div className="mt-6 pt-6 border-t border-red-200">
+                                                <p className="text-sm font-bold text-red-500 uppercase tracking-wider mb-3">Color Palette</p>
+                                                <div className="flex flex-wrap gap-2 md:gap-3">
+                                                    {result.colorPalette?.map((c, i) => (
+                                                        <div key={i} className="flex items-center gap-2 bg-white px-2.5 md:px-3 py-1.5 md:py-2 rounded-full shadow-sm">
+                                                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-full border-2 border-white shadow-inner" style={{ backgroundColor: c.hex || '#ccc' }} />
+                                                            <span className="text-xs md:text-sm font-medium text-gray-700">{c.name || c}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+                                                {[{ l: 'Fabrics', v: result.keyFabrics?.join(', ') }, { l: 'Silhouette', v: result.silhouette }, { l: 'Must-Have', v: result.mustHave }, { l: 'Pro Tip', v: result.stylingTip }].map((item, i) => (
+                                                    <div key={i} className="bg-white/70 backdrop-blur p-4 rounded-2xl">
+                                                        <p className="text-xs font-bold text-red-500 uppercase">{item.l}</p>
+                                                        <p className="text-sm text-gray-700 mt-1 font-medium">{item.v}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 mb-6"><span className="text-red-500"><Icons.ShoppingBag /></span><h3 className="text-xl md:text-2xl font-black text-gray-900">Shop Your Curated Looks</h3></div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                        {result.outfits?.map((o, i) => <OutfitCard key={i} outfit={o} idx={i} />)}
+                                    </div>
+
+                                    <div className="flex justify-center mt-8 md:mt-10">
+                                        <button onClick={reset} className="group flex items-center justify-center gap-3 px-6 md:px-8 py-3 md:py-4 bg-gray-900 text-white font-bold rounded-xl md:rounded-2xl hover:bg-red-600 transition-all shadow-xl w-full sm:w-auto">
+                                            <span className="group-hover:rotate-180 transition-transform duration-500"><Icons.RotateCcw /></span> Start New Vibe Check
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isComplete && (
+                                <div className="flex justify-between mt-8 md:mt-10 pt-6 border-t border-gray-100 gap-4">
+                                    <button onClick={handleBack} disabled={step === 0} className="flex items-center justify-center gap-2 px-4 md:px-6 py-3 border-2 border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 disabled:opacity-30 transition flex-1 md:flex-none"><Icons.ChevronLeft /> Back</button>
+                                    <button onClick={handleNext} disabled={!answers[currentStepKey]} className="flex items-center justify-center gap-2 px-4 md:px-8 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-bold rounded-xl hover:from-red-700 hover:to-red-600 disabled:opacity-30 transition-all shadow-lg shadow-red-200 disabled:shadow-none flex-1 md:flex-none">
+                                        {step === STEPS.length - 1 ? 'Generate Style' : 'Continue'} <Icons.ChevronRight />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <footer className="text-center mt-8 text-gray-400 text-sm">Powered by AI • Made for H&M Style Enthusiasts</footer>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<VibeCheck />);
+    </script>
+</body>
+</html>
